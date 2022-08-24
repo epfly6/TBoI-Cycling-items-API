@@ -6,6 +6,7 @@ local json = require("json")
 CyclingItemsAPI.CyclingItems = {}
 
 local DEFAULT_CYCLE_COOLDOWN = 36
+-- for Binge Eater
 local FOOD_ITEMS = {707, 22, 23, 24, 25, 26, 346, 456} 
 
 local CycleFlags = {
@@ -73,7 +74,6 @@ local function adjustCycleCooldown(numOptions, cd)
     end
 
     return cd
-    
 end
 
 function CyclingItemsAPI:spawnTestItem()
@@ -117,16 +117,16 @@ function CyclingItemsAPI:addCyclingOption(collectible, optionPool, ignoreCycleFl
             if v:Distance(collectible.Position) < 5 then
                 -- add more options, because this is our pedestal
                 if type(optionPool) == "number" then
-                    table.insert(val.itemOptions, game:GetItemPool():GetCollectible(optionPool, false, Random() + 1, CollectibleType.COLLECTIBLE_NULL))
+                    table.insert(val.itemOptions, game:GetItemPool():GetCollectible(optionPool, true, Random() + 1, CollectibleType.COLLECTIBLE_NULL))
                 elseif type(optionPool) == "table" then
                     table.insert(val.itemOptions, getRandomFromPool(optionPool))
                 elseif optionPool == "roompool" or optionPool == "room" then
-                    table.insert(val.itemOptions, game:GetItemPool():GetCollectible(roomToPool(game:GetRoom()), false, Random() + 1, CollectibleType.COLLECTIBLE_NULL))
+                    table.insert(val.itemOptions, game:GetItemPool():GetCollectible(roomToPool(game:GetRoom()), true, Random() + 1, CollectibleType.COLLECTIBLE_NULL))
                 end
 
                 if not ignoreCycleFlags then
                     if getCyclingFlags() & CycleFlags.FLAG_ISAAC_SPECIAL == CycleFlags.FLAG_ISAAC_SPECIAL then
-                        table.insert(val.itemOptions, game:GetItemPool():GetCollectible(roomToPool(game:GetRoom()), false, Random() + 1, CollectibleType.COLLECTIBLE_NULL))
+                        table.insert(val.itemOptions, game:GetItemPool():GetCollectible(roomToPool(game:GetRoom()), true, Random() + 1, CollectibleType.COLLECTIBLE_NULL))
                     end
             
                     if getCyclingFlags() & CycleFlags.FLAG_BINGE_EATER  == CycleFlags.FLAG_BINGE_EATER then
@@ -135,7 +135,7 @@ function CyclingItemsAPI:addCyclingOption(collectible, optionPool, ignoreCycleFl
             
                     if getCyclingFlags() & CycleFlags.FLAG_GLITCHED_CROWN == CycleFlags.FLAG_GLITCHED_CROWN then
                         for i = 1, 4 do
-                            table.insert(val.itemOptions, game:GetItemPool():GetCollectible(roomToPool(game:GetRoom()), false, Random() + 1, CollectibleType.COLLECTIBLE_NULL))
+                            table.insert(val.itemOptions, game:GetItemPool():GetCollectible(roomToPool(game:GetRoom()), true, Random() + 1, CollectibleType.COLLECTIBLE_NULL))
                         end
             
                         val.itemCycleCooldown = DEFAULT_CYCLE_COOLDOWN / 6
@@ -304,7 +304,7 @@ function CyclingItemsAPI:rerollAllOptions(item)
 
     if data then
         for i, v in pairs(data.itemOptions) do
-            v = game:GetItemPool():GetCollectible(roomToPool(game:GetRoom()), false, Random() + 1, CollectibleType.COLLECTIBLE_NULL)
+            v = game:GetItemPool():GetCollectible(roomToPool(game:GetRoom()), true, Random() + 1, CollectibleType.COLLECTIBLE_NULL)
             data.itemOptions[i] = v
         end
     end
@@ -374,46 +374,34 @@ mod:AddCallback(ModCallbacks.MC_POST_PICKUP_UPDATE, mod.PickupUpdate, PickupVari
 --*
 
 function mod:HandleItemReroll(Item, RNG, Player, UseFlags, Slot, CustomVarData)
-    -- this also works for D Infinity
-    if Item == CollectibleType.COLLECTIBLE_D6 or
-    Item == CollectibleType.COLLECTIBLE_D100 then
-		if UseFlags & UseFlag.USE_CARBATTERY > 0 then
-			for _, item in pairs(Isaac.FindByType(5, 100)) do
-				if item.SubType > 0 then
-					CyclingItemsAPI:addCyclingOption(item, "room")
-				end
-			end
-		end
-        
-        if #CyclingItemsAPI:findCyclingItems() > 0 then
-            for _, item in pairs(CyclingItemsAPI:findCyclingItems()) do
-                CyclingItemsAPI:rerollAllOptions(item)
-                item:Morph(5, 100, CyclingItemsAPI:getPedestalCycleData(item.Position).itemOptions[1], true, false, true)
+    if UseFlags & UseFlag.USE_CARBATTERY > 0 then
+        for _, item in pairs(Isaac.FindByType(5, 100)) do
+            if item.SubType > 0 then
+                CyclingItemsAPI:addCyclingOption(item, "room")
             end
         end
     end
+    
+    if #CyclingItemsAPI:findCyclingItems() > 0 then
 
-    --TODO Mystery Gift/Eden's Soul + Car Battery synergies?
-
-end
-mod:AddCallback(ModCallbacks.MC_USE_ITEM, mod.HandleItemReroll)
-
-function mod:HandleCardReroll(MyCard, Player, UseFlags)
-    if #CyclingItemsAPI:findCyclingItems() == 0 then return end
-
-    if MyCard == Card.RUNE_PERTHRO then
         for _, item in pairs(CyclingItemsAPI:findCyclingItems()) do
             CyclingItemsAPI:rerollAllOptions(item)
             item:Morph(5, 100, CyclingItemsAPI:getPedestalCycleData(item.Position).itemOptions[1], true, false, true)
         end
     end
+end
+mod:AddCallback(ModCallbacks.MC_USE_ITEM, mod.HandleItemReroll, CollectibleType.COLLECTIBLE_D6)
 
-    if MyCard == Card.CARD_SOUL_ISAAC then
+function mod:HandleCardReroll(MyCard, Player, UseFlags)
+    if #CyclingItemsAPI:findCyclingItems() > 0 then
+
         for _, item in pairs(CyclingItemsAPI:findCyclingItems()) do
             CyclingItemsAPI:addCyclingOption(item, "room", false)
         end
     end
 end
-mod:AddCallback(ModCallbacks.MC_USE_CARD, mod.HandleCardReroll)
+mod:AddCallback(ModCallbacks.MC_USE_CARD, mod.HandleCardReroll, Card.CARD_SOUL_ISAAC)
+
+
 
 
