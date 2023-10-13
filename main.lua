@@ -9,6 +9,7 @@ local DEFAULT_CYCLE_COOLDOWN = 36
 -- for Binge Eater
 local FOOD_ITEMS = {707, 22, 23, 24, 25, 26, 346, 456} 
 
+---@enum CycleFlags
 local CycleFlags = {
     FLAG_ISAAC_SPECIAL = 1,     -- 1 more options from room's pool (T. Isaac or Isaac + Birthright)
     FLAG_BINGE_EATER = 2,       -- 1 more option from Binge Eater's pool
@@ -44,6 +45,7 @@ local function roomToPool(room)
     return ip
 end
 
+---@return CycleFlags
 local function getCyclingFlags()
     local flags = CycleFlags.NUM_FLAGS
 
@@ -64,6 +66,9 @@ local function getCyclingFlags()
     return flags
 end
 
+---@param numOptions integer
+---@param cd integer
+---@return integer
 local function adjustCycleCooldown(numOptions, cd)
     if numOptions > 8 then
         -- 1 frame, impossible to catch (only used as one of the fully charged Everything Jar's effects in vanilla)
@@ -76,10 +81,15 @@ local function adjustCycleCooldown(numOptions, cd)
     return cd
 end
 
+---@return EntityPickup
 function CyclingItemsAPI:spawnTestItem()
     return Isaac.Spawn(5, 100, -1, Isaac.GetFreeNearPosition(Isaac.GetPlayer(0).Position, 40), Vector.Zero, nil):ToPickup()
 end
 
+---@param collectible Entity
+---@param optionPool table | ItemPoolType | number | string
+---@param ignoreCycleFlags? boolean @default false
+---@param ignoreCooldowns? boolean @default false
 function CyclingItemsAPI:addCyclingOption(collectible, optionPool, ignoreCycleFlags, ignoreCooldowns)
     --[[
         *collectible - `EntityPickup`. what collectible to add option to?
@@ -151,6 +161,13 @@ function CyclingItemsAPI:addCyclingOption(collectible, optionPool, ignoreCycleFl
     end
 end
 
+---@param pos? Vector
+---@param numOptions? integer @default 2
+---@param optionPools? table @default {0, 0}
+---@param cycleCooldown? integer @default 36
+---@param ignoreCycleFlags? boolean @default false
+---@param ignoreCooldowns? boolean @default false
+---@return Entity
 function CyclingItemsAPI:createCyclingPedestal(pos, numOptions, optionPools, cycleCooldown, ignoreCycleFlags, ignoreCooldowns)
     --[[
         *pos - `Vector`. where to create the new pedestal in a current room?
@@ -243,6 +260,8 @@ function CyclingItemsAPI:createCyclingPedestal(pos, numOptions, optionPools, cyc
     return Isaac.Spawn(5, 100, resOptions[1], pos, Vector.Zero, nil)
 end
 
+---@param pos Vector
+---@return table | nil
 function CyclingItemsAPI:getPedestalCycleData(pos)
     --[[
         *pos - `Vector`. from where to check the pedestal IN THE CURRENT ROOM?
@@ -270,6 +289,7 @@ function CyclingItemsAPI:getPedestalCycleData(pos)
     return nil
 end
 
+---@return table
 function CyclingItemsAPI:findCyclingItems()
     --[[
         *RETURNS: `table` containing all cycling pedestals in a room.
@@ -289,6 +309,7 @@ function CyclingItemsAPI:findCyclingItems()
     return t
 end
 
+---@param item Entity | EntityPickup
 function CyclingItemsAPI:rerollAllOptions(item)
     --[[
         *item - `Entity` | `EntityPickup`. pedestal for which one wants to reroll all options.
@@ -310,6 +331,8 @@ function CyclingItemsAPI:rerollAllOptions(item)
     end
 end
 
+---@param item Entity | EntityPickup
+---@param newCooldown number
 function CyclingItemsAPI:setCyclingCooldown(item, newCooldown)
     --[[
         *item - `Entity` | `EntityPickup`. pedestal for which one wants to set a new cycling cooldown.
@@ -327,6 +350,7 @@ end
 
 
 --* SAVE MANAGERS
+---@param isContinued boolean
 function CyclingItemsAPI:OnGameStart(isContinued)
     if not isContinued then
         CyclingItemsAPI.CyclingItems = {}
@@ -336,6 +360,7 @@ function CyclingItemsAPI:OnGameStart(isContinued)
 end
 CyclingItemsAPI:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, CyclingItemsAPI.OnGameStart)
 
+---@param shouldSave boolean
 function CyclingItemsAPI:PreGameExit(shouldSave)
     if shouldSave then
 	    Isaac.SaveModData(CyclingItemsAPI, json.encode(CyclingItemsAPI.CyclingItems, "CyclingItems"))
@@ -345,6 +370,7 @@ CyclingItemsAPI:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, CyclingItemsAPI.PreGa
 --*
 
 --* THE CORE
+---@param entityPickup EntityPickup
 function mod:PickupUpdate(entityPickup)
     if entityPickup.Touched or entityPickup.SubType == 0 then return end
 
@@ -373,6 +399,12 @@ end
 mod:AddCallback(ModCallbacks.MC_POST_PICKUP_UPDATE, mod.PickupUpdate, PickupVariant.PICKUP_COLLECTIBLE)
 --*
 
+---@param Item CollectibleType | integer
+---@param RNG RNG
+---@param Player EntityPlayer
+---@param UseFlags UseFlag | integer
+---@param Slot ActiveSlot | integer
+---@param CustomVarData integer
 function mod:HandleItemReroll(Item, RNG, Player, UseFlags, Slot, CustomVarData)
     if UseFlags & UseFlag.USE_CARBATTERY > 0 then
         for _, item in pairs(Isaac.FindByType(5, 100)) do
@@ -392,6 +424,9 @@ function mod:HandleItemReroll(Item, RNG, Player, UseFlags, Slot, CustomVarData)
 end
 mod:AddCallback(ModCallbacks.MC_USE_ITEM, mod.HandleItemReroll, CollectibleType.COLLECTIBLE_D6)
 
+---@param MyCard Card | integer
+---@param Player EntityPlayer
+---@param UseFlags UseFlag | integer
 function mod:HandleCardReroll(MyCard, Player, UseFlags)
     if #CyclingItemsAPI:findCyclingItems() > 0 then
 
@@ -403,5 +438,5 @@ end
 mod:AddCallback(ModCallbacks.MC_USE_CARD, mod.HandleCardReroll, Card.CARD_SOUL_ISAAC)
 
 
-
+return CyclingItemsAPI
 
