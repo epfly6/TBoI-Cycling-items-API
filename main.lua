@@ -437,6 +437,5 @@ function mod:HandleCardReroll(MyCard, Player, UseFlags)
 end
 mod:AddCallback(ModCallbacks.MC_USE_CARD, mod.HandleCardReroll, Card.CARD_SOUL_ISAAC)
 
-
 return CyclingItemsAPI
 
